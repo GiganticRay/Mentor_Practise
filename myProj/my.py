@@ -42,7 +42,7 @@ def ConstructBasicMapElem(ax):
     ax.add_feature(cfeature.COASTLINE.with_scale(precision),lw=0.5)
 
     # 设定显示经纬度范围
-    img_extent = [70,140,15,55]     # China Region, [-180,180,-90,90]  # World Region    
+    img_extent = [97,111,21,34]     # south-west region of China, [-180,180,-90,90]  # World Region    
     ax.set_extent(img_extent)
 
     return ax
