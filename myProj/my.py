@@ -23,7 +23,7 @@ def ConstructBasicMapElem(ax):
     ax.add_feature(cfeature.BORDERS, linestyle='-',lw=0.25) # 不推荐，我国丢失了藏南、台湾等领土
     ax.add_feature(cfeature.OCEAN)  # 添加海洋
 
-    # longtitude and latitude
+    # longtitude and latitude display
     gl = ax.gridlines(proj, draw_labels=True, linewidth=0.2, color='k', alpha=0.5, linestyle='--')   # gl: gridline
     gl.xlabel_style={'size':12, 'color':'red'}
     gl.ylabel_style={'size':6,  'color':'blue'}
@@ -32,8 +32,8 @@ def ConstructBasicMapElem(ax):
     gl.top_labels = False
     gl.right_labels = False
 
-    # 给定更高的地图精度, 10, 50, 110
-    precision = '110m'
+    # 给定地图精度, 10, 50, 110
+    precision = '10m'
     ax.add_feature(cfeature.OCEAN.with_scale(precision))
     ax.add_feature(cfeature.LAND.with_scale(precision))
     ax.add_feature(cfeature.RIVERS.with_scale(precision),lw=0.6)
@@ -55,23 +55,32 @@ if __name__ == "__main__":
     gribFile = pygrib.open(path)
     grbindex = pygrib.index(path, 'name', 'typeOfLevel', 'level')
 
+
+    """ the description of selected value
+        return type:    gribmessage
+        data:           returnOBJ.data()
+        data.shape:     (3, 181, 360)
+        data descip:    [0]: 该字段的数值, 对应每一个经、维度
+                        [1]: 维度, 要取第一列
+                        [2]: 经度，要取第一行
+    """
     TMP_850     = grbindex.select(name='Temperature', typeOfLevel='isobaricInhPa', level=850)[0]
     VVEL_850    = grbindex.select(name='Geometric vertical velocity', typeOfLevel='isobaricInhPa', level=850)[0]    # 气压场
     UGRD_850    = grbindex.select(name='U component of wind', typeOfLevel='isobaricInhPa', level=850)[0]            # 水平风场
     VGRD_850    = grbindex.select(name='V component of wind', typeOfLevel='isobaricInhPa', level=850)[0]            # 垂直风场 
 
-    # 这个经纬度是干嘛的？
+    # 用于绘图的经纬度（为啥经度是0-360呢，而不是-180->180）
     lons        = TMP_850.data()[2][0,:]   
     lats        = TMP_850.data()[1][:,0]
 
-    TMP_850     = TMP_850.data()[0] - 273.15    # why subtract 273.15 ?
+    TMP_850     = TMP_850.data()[0] - 273.15    # the unit of TMP is K(which 0 is absolute zero, so here should subtract 273.15)
     VVEL_850    = VVEL_850.data()[0]
     UGRD_850    = UGRD_850.data()[0]
     VGRD_850    = VGRD_850.data()[0]
 
     # 基本地图信息
     fig     = plt.figure(figsize=(12,8), dpi=550)                   # 创建画布
-    proj    = ccrs.PlateCarree(central_longitude=130)               # 改投影坐标系为默认投影，适用于单个省市, 并创建中心
+    proj    = ccrs.PlateCarree(central_longitude=0)                 # 改投影坐标系为默认投影，适用于单个省市, 并创建中心
 
     #  添加第一子图, 画温度场
     ax1 = fig.add_axes([0.1, 0.55, 0.4, 0.4], projection = proj)
@@ -88,7 +97,7 @@ if __name__ == "__main__":
     ax2.set_title('VVEL Equipotential line')
     ax2 = ConstructBasicMapElem(ax2)
     # 等压线
-    isoPressure = ax2.contour(lons, lats, VVEL_850, transform=proj, levels=range(-100,100,2),
+    isoPressure = ax2.contour(lons, lats, VVEL_850, transform=proj, levels=20,
                 colors='r', linestyles='--',linewidths=1,alpha=0.8)
     ax2.clabel(isoPressure,colors='r',fontsize=7,inline_spacing=-4,fmt='%.0f')
 
@@ -97,7 +106,7 @@ if __name__ == "__main__":
     ax3.set_title('UGRD Equipotential line')
     ax3 = ConstructBasicMapElem(ax3)
     # 水平风场
-    isoUGRD = ax3.contour(lons, lats, UGRD_850, transform=proj, levels=range(-100,100,2),
+    isoUGRD = ax3.contour(lons, lats, UGRD_850, transform=proj, levels=20,
                 colors='r', linestyles='--',linewidths=1,alpha=0.8)
     ax3.clabel(isoUGRD,colors='r',fontsize=7,inline_spacing=-4,fmt='%.0f')
 
@@ -106,7 +115,7 @@ if __name__ == "__main__":
     ax4.set_title('VGRD Equipotential line')
     ax4 = ConstructBasicMapElem(ax4)
     # 垂直风场
-    isoVGRD = ax4.contour(lons, lats, VGRD_850, transform=proj, levels=range(-100,100,2),
+    isoVGRD = ax4.contour(lons, lats, VGRD_850, transform=proj, levels=20,
                 colors='r', linestyles='--',linewidths=1,alpha=0.8)
     ax4.clabel(isoVGRD,colors='r',fontsize=7,inline_spacing=-4,fmt='%.0f')
     
