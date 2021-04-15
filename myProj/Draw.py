@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import matplotlib.ticker as mticker
 from matplotlib.patches import Ellipse
+from matplotlib.lines import Line2D   
 
 import cartopy.crs as ccrs
 import cartopy.io.shapereader as shpreader
@@ -27,6 +28,9 @@ start_lon   = 97
 end_lon     = 111
 start_lat   = 21
 end_lat     = 34
+
+input_path  = '../data/ncep200715/fnl_200712_00_00'
+output_path = './result.png'
 
 # 构建基本地图要素
 def ConstructBasicMapElem(ax):
@@ -87,6 +91,34 @@ def FitIsoContourToEllipse(ax, isomorph):
                         edgecolor='b', fc='None', lw=2, label='Fit', zorder=2
                     )
                     ax.add_patch(fit_ellipse)
+                    # 画出该椭圆的长短半轴
+                    # 1. 逆时针旋转长短半轴，起始左端点为(0, 0)
+                    # 2. 对旋转后的左端点起始端点添加到center, 得到右端点
+                    rotationOperator    = np.array([[math.cos(phi), -1*math.sin(phi)], 
+                                [math.sin(phi), math.cos(phi)]])
+                    ellipse_axes    = np.array([[width, 0], [0, height]])
+                    ellipse_axes    = np.dot(rotationOperator, ellipse_axes)
+                    width_vertex    = center + ellipse_axes[:, 0]
+                    height_vertex   = center + ellipse_axes[:, 1]
+
+                    ax.add_line(Line2D([center[0], width_vertex[0]], [center[1], width_vertex[1]]))
+                    ax.add_line(Line2D([center[0], height_vertex[0]], [center[1], height_vertex[1]]))
+
+                    # 此处标注出椭圆的中心、顶点的坐标
+                    ax.scatter(center[0], center[1])
+                    ax.text(center[0], center[1], "[{}, {}]".format(format(center[0], '.2f'), format(center[1], '.2f')), 
+                        fontsize=2, color = "g", style = "italic", weight = "light",
+                        verticalalignment='center', horizontalalignment='right')
+
+                    ax.scatter(width_vertex[0], width_vertex[1])
+                    ax.text(width_vertex[0], width_vertex[1], "[{}, {}]".format(format(width_vertex[0], '2f'), format(width_vertex[1], '.2f')), 
+                        fontsize=2, color = "g", style = "italic", weight = "light",
+                        verticalalignment='center', horizontalalignment='right')
+
+                    ax.scatter(height_vertex[0], height_vertex[1])
+                    ax.text(height_vertex[0], height_vertex[1], "[{}, {}]".format(format(height_vertex[0], '2f'), format(height_vertex[1], '2f')), 
+                        fontsize=2, color = "g", style = "italic", weight = "light",
+                        verticalalignment='center', horizontalalignment='right')
 
 '''
     找出等势线内部的中心极值点，最大和最小嘛，方法：暴力求解，
@@ -123,16 +155,18 @@ def GetExtremPointInContour(ax, isomorph, data_set):
                             if(data_set[end_lat-lat, lon-start_lon] > maxmum_point[0]):
                                 maxmum_point = [data_set[end_lat-lat, lon-start_lon], lat, lon]
 
-                # 绘制mimmum_point与maxmum_point在ax上面
+                # 绘制mimmum_point与maxmum_point在ax上面 scatter(lon, lat)
                 ax.scatter(minmum_point[2], minmum_point[1])
+                ax.text(minmum_point[2], minmum_point[1], "[{}, {}, {}]".format(minmum_point[2], minmum_point[1], minmum_point[0]), 
+                    fontsize=2, color = "g", style = "italic", weight = "light",
+                    verticalalignment='center', horizontalalignment='right')
 
 if __name__ == "__main__":
     # from mpl_toolkits.basemap import Basemap， Basemap被废弃了，改用cartopy
 
     # pygrib获取fnl数据
-    path = '../data/ncep200715/fnl_200712_00_00'
-    gribFile = pygrib.open(path)
-    grbindex = pygrib.index(path, 'name', 'typeOfLevel', 'level')
+    gribFile = pygrib.open(input_path)
+    grbindex = pygrib.index(input_path, 'name', 'typeOfLevel', 'level')
 
 
     """ the description of selected value
@@ -172,11 +206,12 @@ if __name__ == "__main__":
     # 等温线
     isotherm = ax1.contour(lons, lats, TMP_850, transform=proj, levels=range(-40,40,2), 
                 colors='r', linestyles='--',linewidths=1,alpha=0.8)
-    ax1.clabel(isotherm, colors='r', fontsize=5, inline_spacing=-4, fmt='%.3f')
+    ax1.clabel(isotherm, colors='r', fontsize=3, inline_spacing=-4, fmt='%.3f')
 
     # 获取每组等温线的经纬度坐标, 数据存储逻辑为：level=i的contours组 -> 该level下的j个contour数据点集合
     FitIsoContourToEllipse(ax1, isotherm)
-    GetExtremPointInContour(ax1, isotherm, TMP_850)
+    # # 粗糙地取等势线内部地极值
+    # GetExtremPointInContour(ax1, isotherm, TMP_850)
 
     
     # 添加第二幅子图，画气压场
@@ -186,8 +221,8 @@ if __name__ == "__main__":
     # 等压线
     isoPressure = ax2.contour(lons, lats, VVEL_850, transform=proj, levels=20,
                 colors='r', linestyles='--',linewidths=1,alpha=0.8)
-    ax2.clabel(isoPressure,colors='r',fontsize=5,inline_spacing=-4,fmt='%.3f')
-    FitIsoContourToEllipse(ax2, isoPressure)
+    ax2.clabel(isoPressure,colors='r',fontsize=3,inline_spacing=-4,fmt='%.3f')
+    # FitIsoContourToEllipse(ax2, isoPressure)
     GetExtremPointInContour(ax2, isoPressure, VVEL_850)
 
     # 添加第三幅子图，画水平风场
@@ -197,9 +232,7 @@ if __name__ == "__main__":
     # 水平风场
     isoUGRD = ax3.contour(lons, lats, UGRD_850, transform=proj, levels=20,
                 colors='r', linestyles='--',linewidths=1,alpha=0.8)
-    ax3.clabel(isoUGRD,colors='r',fontsize=5,inline_spacing=-4,fmt='%.3f')
-    FitIsoContourToEllipse(ax3, isoUGRD)
-    GetExtremPointInContour(ax3, isoUGRD, UGRD_850)
+    ax3.clabel(isoUGRD,colors='r',fontsize=3,inline_spacing=-4,fmt='%.3f')
 
     # 添加第四副子图，画垂直风场
     ax4 = fig.add_axes([0.55, 0.1, 0.4, 0.4], projection = proj)
@@ -208,11 +241,9 @@ if __name__ == "__main__":
     # 垂直风场
     isoVGRD = ax4.contour(lons, lats, VGRD_850, transform=proj, levels=20,
                 colors='r', linestyles='--',linewidths=1,alpha=0.8)
-    ax4.clabel(isoVGRD,colors='r',fontsize=5, inline_spacing=-4,fmt='%.3f')
-    FitIsoContourToEllipse(ax4, isoVGRD)
-    GetExtremPointInContour(ax4, isoVGRD, VGRD_850)
+    ax4.clabel(isoVGRD,colors='r',fontsize=3, inline_spacing=-4,fmt='%.3f')
 
     # 结束
-    plt.savefig('coastlines3.png')
+    plt.savefig(output_path)
 
     print('COOL!')
