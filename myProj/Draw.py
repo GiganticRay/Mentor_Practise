@@ -31,6 +31,8 @@ end_lat     = 34
 
 input_path  = '../data/ncep200715/fnl_200712_00_00'
 output_path = './result.png'
+# 给定地图精度, 10, 50, 110
+precision = '50m'
 
 # 构建基本地图要素
 def ConstructBasicMapElem(ax):
@@ -51,8 +53,6 @@ def ConstructBasicMapElem(ax):
     gl.top_labels = False
     gl.right_labels = False
 
-    # 给定地图精度, 10, 50, 110
-    precision = '110m'
     ax.add_feature(cfeature.OCEAN.with_scale(precision))
     ax.add_feature(cfeature.LAND.with_scale(precision))
     ax.add_feature(cfeature.RIVERS.with_scale(precision),lw=0.6)
@@ -111,12 +111,12 @@ def FitIsoContourToEllipse(ax, isomorph):
                         verticalalignment='center', horizontalalignment='right')
 
                     ax.scatter(width_vertex[0], width_vertex[1])
-                    ax.text(width_vertex[0], width_vertex[1], "[{}, {}]".format(format(width_vertex[0], '2f'), format(width_vertex[1], '.2f')), 
+                    ax.text(width_vertex[0], width_vertex[1], "[{}, {}]".format(format(width_vertex[0], '.2f'), format(width_vertex[1], '.2f')), 
                         fontsize=2, color = "g", style = "italic", weight = "light",
                         verticalalignment='center', horizontalalignment='right')
 
                     ax.scatter(height_vertex[0], height_vertex[1])
-                    ax.text(height_vertex[0], height_vertex[1], "[{}, {}]".format(format(height_vertex[0], '2f'), format(height_vertex[1], '2f')), 
+                    ax.text(height_vertex[0], height_vertex[1], "[{}, {}]".format(format(height_vertex[0], '.2f'), format(height_vertex[1], '.2f')), 
                         fontsize=2, color = "g", style = "italic", weight = "light",
                         verticalalignment='center', horizontalalignment='right')
 
