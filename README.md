@@ -29,13 +29,14 @@
 
 # 文件及输入输出说明：
 ## 文件
-> 1. Draw.py:      主文件
-> 2. result.png：  结果文件
+> 1. [Draw.py][Draw.py]:      主文件
+> 2. [result.png][result.png]：  结果文件
 
 ## 输入输出文件路径
 > 1. input_path:  Draw.py的input_path，输入文件为grib2数据文件
 > 2. output_path: Draw.py的output_path，输出文件为图片
 
 
-## TIPS：
+[Draw.py]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/Draw.py
+[result.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result.png
 
