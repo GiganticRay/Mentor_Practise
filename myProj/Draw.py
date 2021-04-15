@@ -32,7 +32,7 @@ end_lat     = 34
 input_path  = '../data/ncep200715/fnl_200712_00_00'
 output_path = './result.png'
 # 给定地图精度, 10, 50, 110
-precision = '50m'
+precision   = '50m'
 
 # 构建基本地图要素
 def ConstructBasicMapElem(ax):
@@ -104,9 +104,11 @@ def FitIsoContourToEllipse(ax, isomorph):
                     ax.add_line(Line2D([center[0], width_vertex[0]], [center[1], width_vertex[1]]))
                     ax.add_line(Line2D([center[0], height_vertex[0]], [center[1], height_vertex[1]]))
 
+                    ellipse_S = math.pi * width * height
+
                     # 此处标注出椭圆的中心、顶点的坐标
                     ax.scatter(center[0], center[1])
-                    ax.text(center[0], center[1], "[{}, {}]".format(format(center[0], '.2f'), format(center[1], '.2f')), 
+                    ax.text(center[0], center[1], "[{}, {}, S={}]".format(format(center[0], '.2f'), format(center[1], '.2f'), format(ellipse_S, '.2f')), 
                         fontsize=2, color = "g", style = "italic", weight = "light",
                         verticalalignment='center', horizontalalignment='right')
 
