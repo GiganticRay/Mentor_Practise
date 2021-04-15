@@ -8,5 +8,7 @@
 > 1. 使用pygrib对数据进行抽取，其中处理数据为温度场(TMP)，气压场(VVEL)，风场(UGRD, VGRD).
 > 2. 使用matplotlib、cartopy(由于basemap被废弃所以不用)进行画图。
 > 3. 画图结果如 https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/coastlines3.png 所示（其中图片还未进行微调）。
+> 4. 从contour的allsegs片段中提取出每组等势线的拟合坐标，用LsqEllipse进行近似椭圆拟合，此处还未对拟合程度的好与坏进行评价。
 
-## TIPS
+## TIPS：
+
