@@ -14,8 +14,19 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
-
 from ellipse import LsqEllipse      # ellipse_fit package, https://github.com/bdhammel/least-squares-ellipse-fitting
+
+import math
+import sys
+
+from pointinpolygon import Wall
+import time
+
+# 97,111,21,34， 中国西南地区的经纬度对应
+start_lon   = 97
+end_lon     = 111
+start_lat   = 21
+end_lat     = 34
 
 # 构建基本地图要素
 def ConstructBasicMapElem(ax):
@@ -51,12 +62,17 @@ def ConstructBasicMapElem(ax):
 
     return ax
 
-def FitIsoContourToEllipse(ax, iosmorph):
-    for contours_idx, ith_contours in enumerate(iosmorph.allsegs):
+'''
+    function:   将isomorph(obj of contour)中的所有组等势线，进行椭圆拟合，并将结果绘入ax子图对象中.
+    ax:         obj of ...(I forget the name of that...never mind).
+    isomorph:   obj of contour. 
+'''
+def FitIsoContourToEllipse(ax, isomorph):
+    for contours_idx, ith_contours in enumerate(isomorph.allsegs):
         if(len(ith_contours) !=0):
-            curr_level = iosmorph.levels[contours_idx]
+            curr_level = isomorph.levels[contours_idx]
             for contour_idx, ith_contour in enumerate(ith_contours):
-                if(len(ith_contour) >= 7):
+                if(len(ith_contour) >= 7 and len(ith_contour) <= 20):
                     contour_P_X         = ith_contour[:, 0]
                     contour_P_Y         = ith_contour[:, 1]
                     course_ellipse_P    = np.array(list(zip(contour_P_X, contour_P_Y))) 
@@ -72,6 +88,43 @@ def FitIsoContourToEllipse(ax, iosmorph):
                     )
                     ax.add_patch(fit_ellipse)
 
+'''
+    找出等势线内部的中心极值点，最大和最小嘛，方法：暴力求解，
+    1. 先遍历每一条等势线坐标，求出其左下角顶点和右上角顶点的位置，求得一个正方形区域
+    2. 遍历该正方形区域中的每一个点，判定其是否属于该区域内，属于的话记录该点的经纬度坐标并更新最大最小值
+'''
+def GetExtremPointInContour(ax, isomorph, data_set):
+    for contours_idx, ith_contours in enumerate(isomorph.allsegs):
+        if(len(ith_contours) !=0):
+            curr_level = isomorph.levels[contours_idx]
+            for contour_idx, ith_contour in enumerate(ith_contours):
+                contour_P_X         = ith_contour[:, 0]
+                contour_P_Y         = ith_contour[:, 1]
+
+                # 该等势线得多边形的对象，https://github.com/StephewZ/PointInPolygon
+                contour_polygon     = Wall(len(contour_P_X), contour_P_X, contour_P_Y)
+                contour_polygon.precalc_values()
+
+                # 根据地图特性，左下角上去整，右上角下取整
+                right_upper_lon     = int(max(contour_P_X)) 
+                right_upper_lat     = int(max(contour_P_Y))
+                left_lower_lon      = math.ceil(min(contour_P_X))    
+                left_lower_lat      = math.ceil(min(contour_P_Y))
+                
+                # 进行区域内点的判定，并更新最大最小值及其位置
+                minmum_point        = [sys.float_info.max, 0, 0]
+                maxmum_point        = [sys.float_info.min, 0, 0]
+                for lon in range(left_lower_lon, right_upper_lon, 1):
+                    for lat in range(left_lower_lat, right_upper_lat, 1):
+                        # 如果该点在等势线多边形内部，才计算
+                        if(contour_polygon.pointInPolygon(lon, lat)):
+                            if(data_set[end_lat-lat, lon-start_lon] < minmum_point[0]):
+                                minmum_point = [data_set[end_lat-lat, lon-start_lon], lat, lon]
+                            if(data_set[end_lat-lat, lon-start_lon] > maxmum_point[0]):
+                                maxmum_point = [data_set[end_lat-lat, lon-start_lon], lat, lon]
+
+                # 绘制mimmum_point与maxmum_point在ax上面
+                ax.scatter(minmum_point[2], minmum_point[1])
 
 if __name__ == "__main__":
     # from mpl_toolkits.basemap import Basemap， Basemap被废弃了，改用cartopy
@@ -99,12 +152,7 @@ if __name__ == "__main__":
     lons        = TMP_850.data()[2][0,:]   
     lats        = TMP_850.data()[1][:,0]
 
-    # 97,111,21,34， 中国西南地区的经纬度对应，下面进行数据分块提取
     # 尚存疑惑：维度的对应搞定了，可是经度这里是东经，为什么不加180才与全球的地图相匹配呢？
-    start_lon   = 97
-    end_lon     = 111
-    start_lat   = 21
-    end_lat     = 34
     lons        = np.array(range(start_lon, end_lon+1, 1))
     lats        = np.array(range(start_lat, end_lat+1, 1))[::-1]
 
@@ -128,6 +176,8 @@ if __name__ == "__main__":
 
     # 获取每组等温线的经纬度坐标, 数据存储逻辑为：level=i的contours组 -> 该level下的j个contour数据点集合
     FitIsoContourToEllipse(ax1, isotherm)
+    GetExtremPointInContour(ax1, isotherm, TMP_850)
+
     
     # 添加第二幅子图，画气压场
     ax2 = fig.add_axes([0.55, 0.55, 0.4, 0.4], projection = proj)
@@ -138,6 +188,7 @@ if __name__ == "__main__":
                 colors='r', linestyles='--',linewidths=1,alpha=0.8)
     ax2.clabel(isoPressure,colors='r',fontsize=5,inline_spacing=-4,fmt='%.3f')
     FitIsoContourToEllipse(ax2, isoPressure)
+    GetExtremPointInContour(ax2, isoPressure, VVEL_850)
 
     # 添加第三幅子图，画水平风场
     ax3 = fig.add_axes([0.1, 0.1, 0.4, 0.4],projection = proj)
@@ -148,6 +199,7 @@ if __name__ == "__main__":
                 colors='r', linestyles='--',linewidths=1,alpha=0.8)
     ax3.clabel(isoUGRD,colors='r',fontsize=5,inline_spacing=-4,fmt='%.3f')
     FitIsoContourToEllipse(ax3, isoUGRD)
+    GetExtremPointInContour(ax3, isoUGRD, UGRD_850)
 
     # 添加第四副子图，画垂直风场
     ax4 = fig.add_axes([0.55, 0.1, 0.4, 0.4], projection = proj)
@@ -158,7 +210,7 @@ if __name__ == "__main__":
                 colors='r', linestyles='--',linewidths=1,alpha=0.8)
     ax4.clabel(isoVGRD,colors='r',fontsize=5, inline_spacing=-4,fmt='%.3f')
     FitIsoContourToEllipse(ax4, isoVGRD)
-    
+    GetExtremPointInContour(ax4, isoVGRD, VGRD_850)
 
     # 结束
     plt.savefig('coastlines3.png')
