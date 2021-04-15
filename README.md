@@ -36,6 +36,13 @@
 > 1. input_path:  Draw.py的input_path，输入文件为grib2数据文件
 > 2. output_path: Draw.py的output_path，输出文件为图片
 
+## 其他参数调整
+> 1. start_lon: 起始经度
+> 2. end_lon:   结束经度
+> 3. start_lat: 起始纬度
+> 4. end_lat:   结束纬度
+> 5. precision：绘制地图精度（10m, 50m, 110m）
+
 
 [Draw.py]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/Draw.py
 [result.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result.png
