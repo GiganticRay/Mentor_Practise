@@ -55,8 +55,22 @@
 ## 结果
 [如图所示][practice2]
 
+# Mentor_practise2_2
+## 要求
+> 1. 输出椭圆拟合半径的斜率及地理距离
+> 2. 标注出拟合椭圆上的估计最小值
+
+## 标注最小值估计方法说明
+> [估计方法][approximationMethod]
+
+## 结果
+[如图所示][result_2_2]
+
+
 [Draw.py]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/Draw.py
 [result.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result.png
 [practice2]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result_practice2.png
+[approximationMethod]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/approximationMethod.jpg
+[result_2_2]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result_practice2_2.png
 
 
