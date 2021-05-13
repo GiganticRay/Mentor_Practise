@@ -13,6 +13,10 @@ from cartopy.mpl.ticker import LongitudeFormatter, LatitudeFormatter
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER   
 import numpy as np
 
+# metpy
+import metpy.calc as mpcalc
+from metpy.units import units
+
 import matplotlib.pyplot as plt
 
 from ellipse import LsqEllipse      # ellipse_fit package, https://github.com/bdhammel/least-squares-ellipse-fitting
