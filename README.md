@@ -66,11 +66,23 @@
 ## 结果
 [如图所示][result_2_2]
 
+# Mentor_practise2-z-06c
+## 要求
+> 绘制温度平流，绘制省边界
+### 温度平流
+> 使用[metpy][metpy], 进行绘制
+### 省边界
+> 使用中国省边界shp文件，链接: https://pan.baidu.com/s/1eIGV_GXN0bMpr6Pj3n6DCA 提取码: hygg 复制这段内容后打开百度网盘手机App，操作更方便哦(失效邮件联系1443742816@qq.com)
+> 其中直接用经纬度标注出四川与重庆的位置
+### 结果所示
+> 如[图][result_practice2_z_06c.png]所示
+
 
 [Draw.py]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/Draw.py
 [result.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result.png
 [practice2]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result_practice2.png
 [approximationMethod]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/approximationMethod.jpg
 [result_2_2]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result_practice2_2.png
-
+[metpy]: https://unidata.github.io/MetPy/latest/index.html
+[result_practice2_z_06c.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result_practice2_z_06c.png
 
