@@ -39,7 +39,7 @@ end_lon     = 115
 start_lat   = 21 
 end_lat     = 35 
  
-input_path  = '../data/ncep200715/fnl_200712_00_00'
+input_path  = '/home/lei/Document/Proj/Liu_Task/data/ncep200715/fnl_200712_12_00'
 output_path = './result_practice2_z_06c.png' 
 # 给定地图精度, 10, 50, 110 
  
@@ -56,7 +56,7 @@ def ConstructBasicMapElem(ax):
     ax.add_feature(cfeature.OCEAN)  # 添加海洋 
     # ax.add_feature(cfeature.STATES)
 
-    reader = Reader("../data/Region/Province.shp")
+    reader = Reader("/home/lei/Document/Proj/Liu_Task/data/Region/Province.shp")
     province_border = cfeature.ShapelyFeature(reader.geometries(), ccrs.PlateCarree(), edgecolor='green', facecolor='none')
     ax.add_feature(province_border, linewidth=1)    # 省界线
 
@@ -330,7 +330,6 @@ if __name__ == "__main__":
     lons        = np.array(range(start_lon, end_lon+1, 1)) 
     lats        = np.array(range(start_lat, end_lat+1, 1))[::-1] 
 
- 
     HGTprs_850    = HGTprs_850.data()[0][90-end_lat:90-start_lat+1, start_lon:end_lon+1]/10 
     UGRD_850    = UGRD_850.data()[0][90-end_lat:90-start_lat+1, start_lon:end_lon+1] 
     VGRD_850    = VGRD_850.data()[0][90-end_lat:90-start_lat+1, start_lon:end_lon+1] 
