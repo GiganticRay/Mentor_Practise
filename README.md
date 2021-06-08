@@ -82,9 +82,10 @@
 > 转换数据集为nc格式的
 ## 修改之处
 1. 加载的库：netCDF4
-2. FitIsoContourToEllipse中，将拟合数值点个数阈值提升至20(测试结果，少于该阈值的椭圆无法拟合，会报错。)
-3. netCDF4 库加载进来的是 masked_arrary, 而 metpy 需要用到array，所以需要进行一个转换
-4. [start/end]\_[lon/lat]数值进行了改变，变成了与数据集匹配的经纬度。
+2. 原始数据格式为[time, level, lat_data, lon_data], 此处加载数据时time纬度选择的第一个，level选择的第四个(850)。如 dataSet.variables['u']**[0][3]**
+3. FitIsoContourToEllipse中，将拟合数值点个数阈值提升至20(测试结果，少于该阈值的椭圆无法拟合，会报错。)
+4. netCDF4 库加载进来的是 masked_arrary, 而 metpy 需要用到array，所以需要进行一个转换
+5. [start/end]\_[lon/lat]数值进行了改变，变成了与数据集匹配的经纬度。
 
 ## 结果所示
 > 如[图][ERA5_20200712.png]所示
