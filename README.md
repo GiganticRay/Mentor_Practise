@@ -77,6 +77,17 @@
 ### 结果所示
 > 如[图][result_practice2_z_06c.png]所示
 
+# Change data set to netCDF4
+## 任务描述
+> 转换数据集为nc格式的
+## 修改之处
+1. 加载的库：netCDF4
+2. FitIsoContourToEllipse中，将拟合数值点个数阈值提升至20(测试结果，少于该阈值的椭圆无法拟合，会报错。)
+3. netCDF4 库加载进来的是 masked_arrary, 而 metpy 需要用到array，所以需要进行一个转换
+4. [start/end]\_[lon/lat]数值进行了改变，变成了与数据集匹配的经纬度。
+
+## 结果所示
+> 如[图][ERA5_20200712.png]所示
 
 [Draw.py]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/Draw.py
 [result.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result.png
@@ -85,4 +96,5 @@
 [result_2_2]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result_practice2_2.png
 [metpy]: https://unidata.github.io/MetPy/latest/index.html
 [result_practice2_z_06c.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result_practice2_z_06c.png
+[ERA5_20200712.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/ERA5_20200712.png
 
