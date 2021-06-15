@@ -100,6 +100,8 @@
 [ERA5_20200712.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/ERA5_20200712.png
 
 # 以时间为参数进行迭代绘制，拟合椭圆信息输出至文件
+## 要求:
+> 将每个时间段的数值绘制出来，并将拟合椭圆数值写入csv。
 ## 文件：ERA5_Zny0615_w02.py
 ## 指定输出文件夹：全局变量output_dir
 ### Tips:
