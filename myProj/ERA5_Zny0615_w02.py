@@ -3,6 +3,8 @@
 import numpy as np 
 import pygrib 
 
+import netCDF4
+
 from netCDF4 import Dataset
 
 import matplotlib.pyplot as plt 
@@ -37,15 +39,17 @@ import sys
 
 from pointinpolygon import Wall 
 import time 
- 
+
+from datetime import datetime, timedelta 
+
 # 97,111,21,34， 中国西南地区的经纬度对应 
-start_lon   = 90
-end_lon     = 120 
+start_lon   = 95
+end_lon     = 115 
 start_lat   = 20
-end_lat     = 40 
+end_lat     = 35 
  
 input_path  = '/home/lei/Document/Proj/Liu_Task/data/ERA5_20200712.nc'
-output_path = '/home/lei/Document/Proj/Liu_Task/myProj/ERA5_20200712.png' 
+output_dir  = '/home/lei/Document/Proj/Liu_Task/myProj/ellipse_info/'
 # 给定地图精度, 10, 50, 110 
  
 precision   = '50m' 
@@ -125,10 +129,11 @@ def GetDistBTTwoPoints(p1, p2):
     isomorph:   obj of contour.  
     data_set:   算椭圆拟合最小值时所用到的数据集 
     specified_values:   the specified value list that you want to fit to ellipse, default will be all values.  
+    iMinEllipseGribSum: 拟合椭圆最小格点数限制   20210612
 ''' 
-def FitIsoContourToEllipse(ax, isomorph, data_set, specified_values=[]): 
-    # Geodesic的计算对象 
-    output_text = "" 
+def FitIsoContourToEllipse(ax, isomorph, data_set, specified_values=[], iMinEllipseGribSum=50): 
+    # Geodesic的计算对象
+    np_output = [['center_lon', 'center_lat', 'width_axes_slop', 'width_axes_dist', 'height_axes_slop', 'height_axes_dist', 'ellipse_area']]
      
     for contours_idx, ith_contours in enumerate(isomorph.allsegs): 
         # 如果未指定 specified_values，那么默认为全部显示 
@@ -140,7 +145,7 @@ def FitIsoContourToEllipse(ax, isomorph, data_set, specified_values=[]):
             if curr_level not in specified_values: 
                 continue 
             for contour_idx, ith_contour in enumerate(ith_contours): 
-                if(len(ith_contour) >= 20): 
+                if(len(ith_contour) >= iMinEllipseGribSum): 
                     contour_P_X         = ith_contour[:, 0] 
                     contour_P_Y         = ith_contour[:, 1] 
                     course_ellipse_P    = np.array(list(zip(contour_P_X, contour_P_Y)))  
@@ -198,12 +203,17 @@ def FitIsoContourToEllipse(ax, isomorph, data_set, specified_values=[]):
  
                     ellipse_area = math.pi * width_axes_dist * height_axes_dist 
                     
+                    '''
                     output_text += "center: ({}, {})\nwidth_axes_slope: {}\nwidth_axes_dist: {}km\nheight_axes_slope: {}\nheight_axes_dist: {}km\nellipse_area: {}km2\n\n".format( 
                         format(center[0], '.2f'), format(center[1], '.2f'),  
                         format(width_axes_slop, '.2f'), format(width_axes_dist, '.2f'),  
                         format(height_axes_slop, '.2f'), format(height_axes_dist, '.2f'),
                         format(ellipse_area, '.2f')
                     ) 
+                    '''
+
+                    # 改为数组的形式, [center_lon, center_lat, width_axes_slop, width_axes_dist, height_axes_slop, height_axes_dist, ellipse_area]
+                    np_output = np.append(np_output, [[center[0], center[1], width_axes_slop, width_axes_dist, height_axes_slop, height_axes_dist, ellipse_area]], axis=0)
 
                     # 获取椭圆上的最小值 
                     # 方法：对椭圆点进行采样，然后对采样点进行HGT数值估计，最后比较大小值 
@@ -247,7 +257,8 @@ def FitIsoContourToEllipse(ax, isomorph, data_set, specified_values=[]):
                         verticalalignment='top', horizontalalignment='left') 
  
     # 输出所有椭圆长短半轴输出信息。 
-    ax.text(1.01, 0, output_text, transform=ax1.transAxes, color='black') 
+    # ax.text(1.01, 0, output_text, transform=ax1.transAxes, color='black') 
+    return np.array(np_output)
  
 ''' 
     找出等势线内部的中心极值点，最大和最小嘛，方法：暴力求解， 
@@ -309,85 +320,119 @@ def PlotGridValue(ax, data_set):
  
 if __name__ == "__main__": 
     # from mpl_toolkits.basemap import Basemap， Basemap被废弃了，改用cartopy 
+ 
+    # 获取当前时间  --练习--为时间循环准备
+    # dayFile = datetime.now() - timedelta(days=1)
+    # dayFile  = dayFile.strftime("%Y%m%d")
+    # print (dayFile)
+    # 获取当前时间  --练习--为时间循环准备
 
-    # netCDF4获取nc数据
+    # netCDF4获取nc数据 
     dataSet     = Dataset(input_path)
     var_keys    = dataSet.variables.keys()
 
-    lons    = dataSet.variables['longitude'][:]
-    lats    = dataSet.variables['latitude'][:]
-    level   = dataSet.variables['level'][:]
-    HGTprs_850  = dataSet.variables['z'][0][3]/100  # 取第一个时刻，以及第四个高度(850)
-    UGRD_850    = dataSet.variables['u'][0][3]
-    VGRD_850    = dataSet.variables['v'][0][3]
-    TMP_850     = dataSet.variables['t'][0][3] - 273.15 # the unit of TMP is K(which 0 is absolute zero, so here should subtract 273.15)
- 
-    # convert masked_array to array
-    HGTprs_850  = np.array([item.data for item in HGTprs_850])
-    UGRD_850    = np.array([item.data for item in UGRD_850])
-    VGRD_850    = np.array([item.data for item in VGRD_850])
-    TMP_850     = np.array([item.data for item in TMP_850])
+    # netCDF4获取nc数据起止时间  --练习--为时间循环准备
+    arr_time    = dataSet.variables['time']
 
-    # 基本地图信息 
-    fig     = plt.figure(figsize=(24,16), dpi=550)                   # 创建画布 
-    proj    = ccrs.PlateCarree(central_longitude=0)                 # 改投影坐标系为默认投影，适用于单个省市, 并创建中心 
-
-    # 等高线绘制 
-    ax1 = fig.add_axes([0, 0.1, 0.9, 0.8], projection = proj) 
-    ax1.set_title('HGTprs_850') 
-    ax1 = ConstructBasicMapElem(ax1) 
-     
-    isoHGT = ax1.contour(lons, lats, HGTprs_850, transform=proj,vmin=141,vmax=151,levels=[141,142,143,144,145,146,147], 
-                colors='black', linestyles='-',linewidths=2,alpha=0.8,antialiased=True) 
-     
-    ax1.clabel(isoHGT,colors='r',fontsize=8,inline_spacing=-4,fmt='%i') 
-     
-    FitIsoContourToEllipse(ax1, isoHGT, HGTprs_850, [142, 143]) 
- 
-    #PlotGridValue(ax1, HGTprs_850) 
-     
-    # 等高线绘制
-
-    # 画温度场  # 等温线
-    isotherm = ax1.contour(lons, lats, TMP_850, transform=proj, levels=range(17,22,1), 
-                colors='r', linestyles='--',linewidths=1,alpha=0.8)
-    ax1.clabel(isotherm, colors='r', fontsize=8, inline_spacing=-4, fmt='%i')
-
-
-    # 画温度平流
-    # advection data calculations
-    dx, dy = mpcalc.lat_lon_grid_deltas(lons, lats)
-    adv = mpcalc.advection(TMP_850 * units('K'), UGRD_850*units('m/s'), VGRD_850*units('m/s'), dx=dx, dy=dy)
-
-    # plot
-    cint = np.arange(-0.5, 0.5, 0.1)
-    cf = ax1.contourf(lons, lats, adv.to(units('delta_degC/hour')), cint[cint != 0],
-                    extend='both', cmap='bwr', transform=proj)
-	
-    #cint = np.arange(-0.5, 0.5, 0.1)				
-    #cf = ax1.contourf(lons, lats, adv.to(units('delta_degC/hour')), cint,colors=['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w','#7D7DFF'],
-    #                extend='both', transform=proj)
-					
-    gs = gridspec.GridSpec(2, 1, height_ratios=[1, .02], bottom=.07, top=.99,
-        hspace=0.01, wspace=0.01)
+    for curr_time_index, curr_time in enumerate(arr_time):
+        curr_time = netCDF4.num2date(curr_time, arr_time.units)
         
-    cax = plt.subplot(gs[1])
+        # netCDF4获取nc数据不同时间格式
+        '''
+        print (arr_time[0])
+        print (first.strftime('%m'))
+        print (first.strftime('%b'))
+        print ((first.strftime('%Y-%b-%d %H:%M'))[:4])
+        print (first.strftime('%Y-%b-%d %H:%M'))
+        '''
+        
+        str_curr_time = curr_time.strftime('%Y-%m-%d %H:%M')
+        # netCDF4获取nc数据起止时间  --练习--为时间循环准备
+        
+        lons    = dataSet.variables['longitude'][:]
+        # determine what longitude convention is being used
+        # print (lons.min(),lons.max())	#获取lons min max
+        
+        lats    = dataSet.variables['latitude'][:]
+        level   = dataSet.variables['level'][:]
+        HGTprs_850  = dataSet.variables['z'][curr_time_index][3]/100  # 取第一个时刻，以及第四个高度(850)
+        UGRD_850    = dataSet.variables['u'][curr_time_index][3]
+        VGRD_850    = dataSet.variables['v'][curr_time_index][3]
+        TMP_850     = dataSet.variables['t'][curr_time_index][3] - 273.15 # the unit of TMP is K(which 0 is absolute zero, so here should subtract 273.15)
     
-    cbar = plt.colorbar(cf, cax=cax, orientation='horizontal', extendrect=True, ticks=cint)
-	
-    #cbar.set_label(r'$^{o}C$', size='large')
-	
-    cbar.set_label(r'$^{o}C$', size='large')
-	
+        # convert masked_array to array
+        HGTprs_850  = np.array([item.data for item in HGTprs_850])
+        UGRD_850    = np.array([item.data for item in UGRD_850])
+        VGRD_850    = np.array([item.data for item in VGRD_850])
+        TMP_850     = np.array([item.data for item in TMP_850])
 
-    # 获取每组等温线的经纬度坐标, 数据存储逻辑为：level=i的contours组 -> 该level下的j个contour数据点集合
-    #FitIsoContourToEllipse(ax1, isotherm,TMP_850, [20, 21])
-    # # 粗糙地取等势线内部地极值
-    # GetExtremPointInContour(ax1, isotherm, TMP_850)
-	
-    #风标绘制
-    # ax1.barbs(lons, lats, UGRD_850*2.5, VGRD_850*2.5)  
-    #风标绘制
+        # 基本地图信息 
+        fig     = plt.figure(figsize=(12,8), dpi=550)                   # 创建画布 
+        proj    = ccrs.PlateCarree(central_longitude=0)                 # 改投影坐标系为默认投影，适用于单个省市, 并创建中心 
+
+        # 等高线绘制 
+        ax1 = fig.add_axes([0, 0.1, 0.9, 0.8], projection = proj) 
+        
+        ax1.set_title('HGTprs_850' + '    ' + str_curr_time)  #标题加入时间
+        
+        ax1 = ConstructBasicMapElem(ax1) 
+        
+        isoHGT = ax1.contour(lons, lats, HGTprs_850, transform=proj,vmin=138,vmax=151,levels=[138,139,140,141,142,143,144,145,146,147], 
+                    colors='black', linestyles='-',linewidths=2,alpha=0.8,antialiased=True) 
+        
+        ax1.clabel(isoHGT,colors='r',fontsize=8,inline_spacing=-4,fmt='%i') 
+        
+        np_ellipse_info = FitIsoContourToEllipse(ax1, isoHGT, HGTprs_850, [139, 140, 141], 30)
+        
+        str_ellipseInfo_path = output_dir + str_curr_time + ".csv"
+        np.savetxt(str_ellipseInfo_path, np_ellipse_info, delimiter=",", fmt='%s')
     
-    # 结束 
-    plt.savefig(output_path) 
+    
+        #PlotGridValue(ax1, HGTprs_850) 
+        
+        # 等高线绘制
+
+        # 画温度场  # 等温线
+        isotherm = ax1.contour(lons, lats, TMP_850, transform=proj, levels=range(17,22,1), 
+                    colors='r', linestyles='--',linewidths=1,alpha=0.8)
+        ax1.clabel(isotherm, colors='r', fontsize=8, inline_spacing=-4, fmt='%i')
+
+
+        # 画温度平流
+        # advection data calculations
+        dx, dy = mpcalc.lat_lon_grid_deltas(lons, lats)
+        adv = mpcalc.advection(TMP_850 * units('K'), UGRD_850*units('m/s'), VGRD_850*units('m/s'), dx=dx, dy=dy)
+
+        # plot
+        cint = np.arange(-0.5, 0.5, 0.1)
+        cf = ax1.contourf(lons, lats, adv.to(units('delta_degC/hour')), cint[cint != 0],
+                        extend='both', cmap='bwr', transform=proj)
+        
+        #cint = np.arange(-0.5, 0.5, 0.1)				
+        #cf = ax1.contourf(lons, lats, adv.to(units('delta_degC/hour')), cint,colors=['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w','#7D7DFF'],
+        #                extend='both', transform=proj)
+                        
+        gs = gridspec.GridSpec(2, 1, height_ratios=[1, .012], bottom=.06, top=.80,
+            hspace=0.1, wspace=0.01)
+            
+        cax = plt.subplot(gs[1])
+        
+        cbar = plt.colorbar(cf, cax=cax, orientation='horizontal', extendrect=True, ticks=cint)
+        
+        #cbar.set_label(r'$^{o}C$', size='large')
+        
+        cbar.set_label(r'$^{o}C$', size='large')
+        
+
+        # 获取每组等温线的经纬度坐标, 数据存储逻辑为：level=i的contours组 -> 该level下的j个contour数据点集合
+        #FitIsoContourToEllipse(ax1, isotherm,TMP_850, [20, 21])
+        # # 粗糙地取等势线内部地极值
+        # GetExtremPointInContour(ax1, isotherm, TMP_850)
+        
+        #风标绘制
+        ax1.barbs(lons[::4], lats[::4], UGRD_850[::4,::4]*2.5, VGRD_850[::4,::4]*2.5)  #纵横间隔4点画风标
+        #风标绘制
+        
+        # 结束 
+        plt.savefig(output_dir + str_curr_time + ".png") 
+        
