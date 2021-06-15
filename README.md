@@ -99,3 +99,7 @@
 [result_practice2_z_06c.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result_practice2_z_06c.png
 [ERA5_20200712.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/ERA5_20200712.png
 
+# 以时间为参数进行迭代绘制，拟合椭圆信息输出至文件
+## 指定输出文件夹：全局变量output_dir
+### Tips:
+> 经测试在iMinEllipseGribSum=30的情况下可全部跑通，但是必要的话应该可以修改pointinpolygon文件源代码，进行异常处理
