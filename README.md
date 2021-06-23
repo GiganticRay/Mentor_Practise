@@ -106,3 +106,8 @@
 ## 指定输出文件夹：全局变量output_dir
 ### Tips:
 > 经测试在iMinEllipseGribSum=30的情况下可全部跑通，但是必要的话应该可以修改pointinpolygon文件源代码，进行异常处理
+
+# 仅绘制中心在四川盆地矩形范围内(25-34N, 103-110E)的椭圆
+> 修改时间：2021.06.23
+> 文件: ERA5_Zny_One_0622_w02.py
+> 修改地方：为 **FitIsoContourToEllipse** 函数引入 **l_region_restriction** 参数，给出椭圆中心的范围
