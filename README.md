@@ -111,3 +111,11 @@
 > 修改时间：2021.06.23 <br />
 > 文件: ERA5_Zny_One_0622_w02.py <br />
 > 修改地方：为 **FitIsoContourToEllipse** 函数引入 **l_region_restriction** 参数，给出椭圆中心的范围
+
+# New Assignment (Editied in 2021/8/16)
+
+## 1. Fix the bug of fitting ellipse (current issue: when the points of pending-fitting ellipse is too less to fit an ellipse successfully, the python runtime will return error directly)
+
+## 2. individually paint the ellipse whose center point is located in the appointed area.
+
+## 3. bouns: truncatingthe data used to fit ellipse if its fitting shape is similar to ∞
