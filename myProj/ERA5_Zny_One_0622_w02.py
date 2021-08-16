@@ -130,7 +130,7 @@ def GetDistBTTwoPoints(p1, p2):
 
  
 ''' 
-    function:   将isomorph(obj of contour)中的所有组等势线，进行椭圆拟合，并将结果绘入ax子图对象中. 同时输出每一个拟合椭圆的长短半径地理距离、斜率，以及标注出你和椭圆上的最小值。
+    function:   将isomorph(obj of contour)中的所有组等势线，进行椭圆拟合，并将结果绘入ax子图对象中. 同时输出每一个拟合椭圆的长短半径地理距离、斜率，以及标注出拟合椭圆上的最小值。
     ax:         obj of ...(I forget the name of that...never mind). 
     isomorph:   obj of contour.  
     data_set:   算椭圆拟合最小值时所用到的数据集 
@@ -138,7 +138,7 @@ def GetDistBTTwoPoints(p1, p2):
     iMinEllipseGribSum: 拟合椭圆最小格点数限制   20210612
     l_region_restriction:   default为空，表示不限制；输入格式可选择 2x2 list: [[start_lat, end_lat], [start_lon, end_lon]]
 ''' 
-def FitIsoContourToEllipse(ax, isomorph, data_set, specified_values=[], iMinEllipseGribSum=50, l_region_restriction=[]): 
+def FitIsoContourToEllipse(ax, isomorph, data_set, specified_values=[], iMinEllipseGribSum=1, l_region_restriction=[]): 
     # Geodesic的计算对象 
     output_text = "" 
     np_output = [['center_lon',' ', 'center_lat',' ', 'width_axes_slop',' ', 'width_axes_dist',' ', 'height_axes_slop',' ', 'height_axes_dist',' ', 'ellipse_area']]
@@ -153,16 +153,17 @@ def FitIsoContourToEllipse(ax, isomorph, data_set, specified_values=[], iMinElli
             if curr_level not in specified_values: 
                 continue 
             for contour_idx, ith_contour in enumerate(ith_contours): 
-                if(len(ith_contour) >= iMinEllipseGribSum): 
-                    contour_P_X         = ith_contour[:, 0] 
-                    contour_P_Y         = ith_contour[:, 1] 
-                    course_ellipse_P    = np.array(list(zip(contour_P_X, contour_P_Y)))  
-                    fit_ellipse_P       = LsqEllipse().fit(course_ellipse_P) 
+                contour_P_X         = ith_contour[:, 0] 
+                contour_P_Y         = ith_contour[:, 1] 
+                course_ellipse_P    = np.array(list(zip(contour_P_X, contour_P_Y)))  
+                fit_ellipse_P       = LsqEllipse().fit(course_ellipse_P) 
 
- 
-                    # 对拟合结果进行判定，如果超出阈值，说明不可拟合成椭圆(基于点到椭圆的距离)，此处未作处理，直接画出来的... 
-
+                # 判定是否能够拟合成椭圆
+                # 1. 拟合对象的参数列表不为空（拟合成功）
+                # 2. 拟合对象的参数列表值合法（不为复数）
+                if(len(fit_ellipse_P.coefficients) > 0 and isinstance(fit_ellipse_P.coefficients[0], complex)==False): 
                     # center: [lon, lat]
+
                     center, width, height, phi = fit_ellipse_P.as_parameters() 
                     fit_ellipse = Ellipse( 
                         xy=center, width=2*width, height=2*height, angle=np.rad2deg(phi), 
@@ -444,7 +445,7 @@ if __name__ == "__main__":
         #FitIsoContourToEllipse(ax1, isoHGT, HGTprs_850, [139, 140, 141],30) 
  
         #np_ellipse_info = FitIsoContourToEllipse(ax1, isoHGT, HGTprs_850, [139, 140, 141], 30)
-        np_ellipse_info = FitIsoContourToEllipse(ax1, isoHGT, HGTprs_850, HGTprs_850_SC_Ellipse_List, 30, l_region_restriction=[[25, 34], [103, 110]])
+        np_ellipse_info = FitIsoContourToEllipse(ax1, isoHGT, HGTprs_850, HGTprs_850_SC_Ellipse_List, 1, l_region_restriction=[[25, 34], [103, 110]])
         
         str_ellipseInfo_path = output_dir + str_curr_time + ".csv"
         np.savetxt(str_ellipseInfo_path, np_ellipse_info, delimiter=",", fmt='%s')
