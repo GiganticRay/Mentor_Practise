@@ -90,14 +90,7 @@
 ## 结果所示
 > 如[图][ERA5_20200712.png]所示
 
-[Draw.py]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/Draw.py
-[result.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result.png
-[practice2]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result_practice2.png
-[approximationMethod]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/approximationMethod.jpg
-[result_2_2]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result_practice2_2.png
-[metpy]: https://unidata.github.io/MetPy/latest/index.html
-[result_practice2_z_06c.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result_practice2_z_06c.png
-[ERA5_20200712.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/ERA5_20200712.png
+
 
 # 以时间为参数进行迭代绘制，拟合椭圆信息输出至文件
 ## 要求:
@@ -114,8 +107,20 @@
 
 # New Assignment (Editied in 2021/8/16)
 
-## 1. Fix the bug of fitting ellipse (current issue: when the points of pending-fitting ellipse is too less to fit an ellipse successfully, the python runtime will return error directly)
+
+### solution (editted in 2021/8/16)
+> solution is located in the [Q1 solution][Q1_solution_commit].
 
 ## 2. individually paint the ellipse whose center point is located in the appointed area.
 
 ## 3. bouns: truncatingthe data used to fit ellipse if its fitting shape is similar to ∞
+
+[Draw.py]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/Draw.py
+[result.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result.png
+[practice2]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result_practice2.png
+[approximationMethod]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/approximationMethod.jpg
+[result_2_2]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result_practice2_2.png
+[metpy]: https://unidata.github.io/MetPy/latest/index.html
+[result_practice2_z_06c.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/result_practice2_z_06c.png
+[ERA5_20200712.png]: https://github.com/GiganticRay/Mentor_Practise/blob/main/myProj/ERA5_20200712.png
+[Q1_solution_commit]: https://github.com/GiganticRay/Mentor_Practise/commit/621021f5de32516488ef4cb7bd4ccecb30cef26b
