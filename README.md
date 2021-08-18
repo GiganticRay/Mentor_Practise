@@ -112,6 +112,8 @@
 > solution is located in the [Q1 solution][Q1_solution_commit].
 
 ## 2. individually paint the ellipse whose center point is located in the appointed area.
+> 已解决，文件输出格式为 output_dir + 'ERA5_Zny_One_0622_w02_'+str_curr_time + "_restricted" + ".png"\
+> 判别方式：在拟合椭圆函数 ```FitIsoContourToEllipse``` 中，看```l_region_restriction```函数是否为空，如果不空表明有指定的多边形区域
 
 ## 3. bouns: truncatingthe data used to fit ellipse if its fitting shape is similar to ∞
 
