@@ -530,7 +530,7 @@ if __name__ == "__main__":
         plt.figure("normal")
         plt.savefig(output_dir + 'ERA5_Zny_One_0622_w02_'+str_curr_time + ".png") 
 
-        if(np_ellipse_restricted_info.size > 1):
+        if(np_ellipse_restricted_info.shape[0] > 1):
             str_ellipseInfo_restricted_path = output_dir + str_curr_time + "_restricted" + ".csv"
             np.savetxt(str_ellipseInfo_restricted_path, np_ellipse_restricted_info, delimiter=",", fmt='%s')
             plt.figure("restricted")
