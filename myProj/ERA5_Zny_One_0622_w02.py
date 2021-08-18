@@ -1,6 +1,9 @@
 # -*- coding: UTF-8 -*-
 
-import numpy as np 
+from metpy.calc.thermo import saturation_equivalent_potential_temperature
+import numpy as np
+from numpy.core.fromnumeric import size
+from numpy.core.numeric import cross 
 import pygrib 
 
 import netCDF4
@@ -128,6 +131,30 @@ def GetDistBTTwoPoints(p1, p2):
     dist    = R * c  
     return dist 
 
+
+'''
+    function:   determine whether p1 is located inside polygen
+    pending_p:  [lon, lat]
+    polygon:    [p1, p2, p3, ..., pn], pi = [lon, lat], the polygon is sequentially composed by p1->p2->p3->...->pn->p1.
+    Method:     https://www.cnblogs.com/luxiaoxun/p/3722358.html, get the number of crossing points using the vertical line across the polygon.
+'''
+def IsInsidePolygon(pending_p, polygon):
+    num_crossings = 0
+    if(len(polygon) < 3):
+        return False
+    for pi_idx, pi in enumerate(polygon):
+        p1 = pi
+        p2 = polygon[0] if pi_idx==len(polygon)-1 else polygon[pi_idx+1]
+
+        if (pending_p[0] < p1[0] and pending_p[0] < p2[0]) or (pending_p[0] > p1[0] and pending_p[0] > p1[0]):
+            continue
+
+        slope = (p2[1]-p1[1]) / (p2[0]-p1[0])
+        # 统计有交点，又在该直线之上的个数
+        if(pending_p[1] < slope*(pending_p[0] - p1[0]) + p1[1]):
+            num_crossings += 1
+
+    return True if num_crossings%2 != 0 else False
  
 ''' 
     function:   将isomorph(obj of contour)中的所有组等势线，进行椭圆拟合，并将结果绘入ax子图对象中. 同时输出每一个拟合椭圆的长短半径地理距离、斜率，以及标注出拟合椭圆上的最小值。
@@ -135,14 +162,13 @@ def GetDistBTTwoPoints(p1, p2):
     isomorph:   obj of contour.  
     data_set:   算椭圆拟合最小值时所用到的数据集 
     specified_values:   the specified value list that you want to fit to ellipse, default will be all values.  
-    iMinEllipseGribSum: 拟合椭圆最小格点数限制   20210612
-    l_region_restriction:   default为空，表示不限制；输入格式可选择 2x2 list: [[start_lat, end_lat], [start_lon, end_lon]]
+    l_region_restriction:   default为空，表示不限制；输入格式可选择 nx2 list: [p1, p2, p3...pn]. pi = [lon, lat], 由p1->p2->p3->...->pn->p1构成一个封闭多边形
 ''' 
-def FitIsoContourToEllipse(ax, isomorph, data_set, specified_values=[], iMinEllipseGribSum=1, l_region_restriction=[]): 
+def FitIsoContourToEllipse(ax, isomorph, data_set, specified_values=[], l_region_restriction=[]): 
     # Geodesic的计算对象 
     output_text = "" 
     np_output = [['center_lon',' ', 'center_lat',' ', 'width_axes_slop',' ', 'width_axes_dist',' ', 'height_axes_slop',' ', 'height_axes_dist',' ', 'ellipse_area']]
-    
+
     for contours_idx, ith_contours in enumerate(isomorph.allsegs): 
         # 如果未指定 specified_values，那么默认为全部显示 
         if(len(specified_values)==0): 
@@ -153,129 +179,133 @@ def FitIsoContourToEllipse(ax, isomorph, data_set, specified_values=[], iMinElli
             if curr_level not in specified_values: 
                 continue 
             for contour_idx, ith_contour in enumerate(ith_contours): 
-                contour_P_X         = ith_contour[:, 0] 
-                contour_P_Y         = ith_contour[:, 1] 
-                course_ellipse_P    = np.array(list(zip(contour_P_X, contour_P_Y)))  
-                fit_ellipse_P       = LsqEllipse().fit(course_ellipse_P) 
+                # ellipse fitting requirement
+                if(len(ith_contour) >= 5):
+                    contour_P_X         = ith_contour[:, 0] 
+                    contour_P_Y         = ith_contour[:, 1] 
+                    course_ellipse_P    = np.array(list(zip(contour_P_X, contour_P_Y)))  
+                    fit_ellipse_P       = LsqEllipse().fit(course_ellipse_P) 
 
-                # 判定是否能够拟合成椭圆
-                # 1. 拟合对象的参数列表不为空（拟合成功）
-                # 2. 拟合对象的参数列表值合法（不为复数）
-                if(len(fit_ellipse_P.coefficients) > 0 and isinstance(fit_ellipse_P.coefficients[0], complex)==False): 
-                    # center: [lon, lat]
+                    # 判定是否能够拟合成椭圆
+                    # 1. 拟合对象的参数列表不为空（拟合成功）
+                    # 2. 拟合对象的参数列表值合法（不为复数）
+                    if(len(fit_ellipse_P.coefficients) > 0 and isinstance(fit_ellipse_P.coefficients[0], complex)==False): 
+                        # center: [lon, lat]
 
-                    center, width, height, phi = fit_ellipse_P.as_parameters() 
-                    fit_ellipse = Ellipse( 
-                        xy=center, width=2*width, height=2*height, angle=np.rad2deg(phi), 
-                        edgecolor='b', fc='None', lw=2, label='Fit', zorder=2 
-                    ) 
+                        center, width, height, phi = fit_ellipse_P.as_parameters() 
+                        fit_ellipse = Ellipse( 
+                            xy=center, width=2*width, height=2*height, angle=np.rad2deg(phi), 
+                            edgecolor='b', fc='None', lw=2, label='Fit', zorder=2 
+                        ) 
 
-                    # 如果指定了区域范围，该拟合椭圆中心超出范围，则跳过
-                    if(len(l_region_restriction) != 0):
-                        if(center[0] > l_region_restriction[1][1] or 
-                            center[0] < l_region_restriction[1][0] or
-                            center[1] > l_region_restriction[0][1] or
-                            center[1] < l_region_restriction[0][0]):
+                        # 如果对拟合椭圆中心有范围限制，中心落在之外
+                        if(len(l_region_restriction)!=0 and IsInsidePolygon(center, l_region_restriction) is not True):
                             continue
 
-                    ax.add_patch(fit_ellipse) 
-                    # 画出该椭圆的长短半轴 
-                    # 1. 逆时针旋转长短半轴，起始左端点为(0, 0) 
-                    # 2. 对旋转后的左端点起始端点添加到center, 得到右端点 
-                    rotationOperator    = np.array([[math.cos(phi), -1*math.sin(phi)],  
-                                [math.sin(phi), math.cos(phi)]]) 
-                    ellipse_axes    = np.array([[width, 0], [0, height]]) 
-                    ellipse_axes    = np.dot(rotationOperator, ellipse_axes) 
-                    width_vertex    = center + ellipse_axes[:, 0] 
-                    height_vertex   = center + ellipse_axes[:, 1] 
+                        # 计算该椭圆的长短半轴 
+                        # 1. 逆时针旋转长短半轴，起始左端点为(0, 0) 
+                        # 2. 对旋转后的左端点起始端点添加到center, 得到右端点 
+                        rotationOperator    = np.array([[math.cos(phi), -1*math.sin(phi)],  
+                                    [math.sin(phi), math.cos(phi)]]) 
+                        ellipse_axes    = np.array([[width, 0], [0, height]]) 
+                        ellipse_axes    = np.dot(rotationOperator, ellipse_axes) 
+                        width_vertex    = center + ellipse_axes[:, 0] 
+                        height_vertex   = center + ellipse_axes[:, 1] 
 
-                    ax.add_line(Line2D([center[0], width_vertex[0]], [center[1], width_vertex[1]])) 
-                    ax.add_line(Line2D([center[0], height_vertex[0]], [center[1], height_vertex[1]])) 
+                        # square of ellipse shape, not the area.
+                        ellipse_S = math.pi * width * height 
 
-                    ellipse_S = math.pi * width * height 
-
-                     # 此处标注出椭圆的中心、顶点的坐标: lon\lat 
-                    ax.scatter(center[0], center[1]) 
-                    ax.text(center[0], center[1], "[{}, {}, S={}]".format(format(center[0], '.2f'), format(center[1], '.2f'), format(ellipse_S, '.2f')),  
-                        fontsize=6, color = "r", style = "italic", weight = "light", 
-                        verticalalignment='center', horizontalalignment='right') 
-
-                    ax.scatter(width_vertex[0], width_vertex[1]) 
-                    ax.text(width_vertex[0], width_vertex[1], "[{}, {}]".format(format(width_vertex[0], '.2f'), format(width_vertex[1], '.2f')),  
-                        fontsize=6, color = "black", style = "italic", weight = "light", 
-                        verticalalignment='center', horizontalalignment='right') 
-
-                    ax.scatter(height_vertex[0], height_vertex[1]) 
-                    ax.text(height_vertex[0], height_vertex[1], "[{}, {}]".format(format(height_vertex[0], '.2f'), format(height_vertex[1], '.2f')),  
-                        fontsize=6, color = "g", style = "italic", weight = "light", 
-                        verticalalignment='center', horizontalalignment='right') 
-
- 
-                    # 计算该椭圆的长短半径长度（地理距离）、斜率 
-                    width_axes_slop  = math.tan(math.radians(fit_ellipse.angle)) 
-                    width_axes_dist  = GetDistBTTwoPoints([center[0], center[1]], [width_vertex[0], width_vertex[1]]) 
-                     
-                    height_axes_slop = math.tan(math.radians(fit_ellipse.angle + 90)) 
-                    height_axes_dist = GetDistBTTwoPoints([center[0], center[1]], [height_vertex[0], height_vertex[1]]) 
-
- 
-                    ellipse_area = math.pi * width_axes_dist * height_axes_dist 
-                    
-                    output_text += "center: ({}, {})\nwidth_axes_slope: {}\nwidth_axes_dist: {}km\nheight_axes_slope: {}\nheight_axes_dist: {}km\nellipse_area: {}km2\n\n".format( 
-                        format(center[0], '.2f'), format(center[1], '.2f'),  
-                        format(width_axes_slop, '.2f'), format(width_axes_dist, '.2f'),  
-                        format(height_axes_slop, '.2f'), format(height_axes_dist, '.2f'),
-                        format(ellipse_area, '.2f')
-                    ) 
-
-                    # 改为数组的形式, [center_lon, center_lat, width_axes_slop, width_axes_dist, height_axes_slop, height_axes_dist, ellipse_area]
-                    #np_output = np.append(np_output, [[center[0], center[1], width_axes_slop, width_axes_dist, height_axes_slop, height_axes_dist, ellipse_area]], axis=0)
-                    np_output = np.append(np_output, [[format(center[0], '.3f'),'         ',format(center[1], '.3f'),'         ', format(width_axes_slop, '.3f'),'         ', format(width_axes_dist, '.3f'), '         ', 
-                        format(height_axes_slop, '.3f'),'        ', format(height_axes_dist, '.3f'),'        ', format(ellipse_area, '.3f')]], axis=0)
+                        # 计算该椭圆的长短半径长度（地理距离）、斜率 
+                        width_axes_slop  = math.tan(math.radians(fit_ellipse.angle)) 
+                        width_axes_dist  = GetDistBTTwoPoints([center[0], center[1]], [width_vertex[0], width_vertex[1]]) 
                         
-                    # 获取椭圆上的最小值 
-                    # 方法：对椭圆点进行采样，然后对采样点进行HGT数值估计，最后比较大小值 
-                    # sample_points = SamplePointsFromEllipse(fit_ellipse_P) 
-                    path        = fit_ellipse.get_path() 
-                    vertices    = path.vertices.copy() 
-                    vertices    = fit_ellipse.get_patch_transform().transform(vertices) # 采样点(n, 2) 
+                        height_axes_slop = math.tan(math.radians(fit_ellipse.angle + 90)) 
+                        height_axes_dist = GetDistBTTwoPoints([center[0], center[1]], [height_vertex[0], height_vertex[1]]) 
 
-                    min_HGT     = [sys.float_info.max, 0, 0]    # value, lon, lat 
-                    for p_coord in vertices: 
-                        left_bottom_P   = [int(p_coord[0]), int(p_coord[1])] 
-                        right_top_P     = [math.ceil(p_coord[0]), math.ceil(p_coord[1])]   
-                        # 进行合理假设，我们仅有的数据是该点所在的正方形区域顶点的HGT数值，所以根据其所在的比例，分别取横向的平均与纵向的平均 
-                        # 注意坐标换算 
-                        left_bottom_V   = data_set[end_lat-left_bottom_P[1], left_bottom_P[0]-start_lon] 
-                        left_top_V      = data_set[end_lat-right_top_P[1], left_bottom_P[0]-start_lon] 
-                        right_top_V     = data_set[end_lat-right_top_P[1], right_top_P[0]-start_lon] 
-                        right_bottom_V  = data_set[end_lat-left_bottom_P[1], right_top_P[0]-start_lon] 
+                        ellipse_area = math.pi * width_axes_dist * height_axes_dist 
+                        
+                        # 获取椭圆上的最小值 
+                        # 方法：对椭圆点进行采样，然后对采样点进行HGT数值估计，最后比较大小值 
+                        # sample_points = SamplePointsFromEllipse(fit_ellipse_P) 
+                        path        = fit_ellipse.get_path() 
+                        vertices    = path.vertices.copy() 
+                        vertices    = fit_ellipse.get_patch_transform().transform(vertices) # 采样点(n, 2) 
 
-                        bottom_to_up_per    = (p_coord[1]-left_bottom_P[1]) / (right_top_P[1]-left_bottom_P[1]) 
-                        left_to_right_per   = (p_coord[0]-left_bottom_P[0]) / (right_top_P[0]-left_bottom_P[0]) 
-                         
-                        left_vertical_approx    = left_bottom_V + bottom_to_up_per*(left_top_V-left_bottom_V) 
-                        right_vertical_approx   = right_bottom_V + bottom_to_up_per*(right_top_V-right_bottom_V) 
-                        vertical_avg            = (left_vertical_approx+right_vertical_approx)/2 
+                        min_HGT     = [sys.float_info.max, 0, 0]    # value, lon, lat 
+                        for p_coord in vertices: 
+                            left_bottom_P   = [int(p_coord[0]), int(p_coord[1])] 
+                            right_top_P     = [math.ceil(p_coord[0]), math.ceil(p_coord[1])]   
+                            # 进行合理假设，我们仅有的数据是该点所在的正方形区域顶点的HGT数值，所以根据其所在的比例，分别取横向的平均与纵向的平均 
+                            # 注意坐标换算 
+                            left_bottom_V   = data_set[end_lat-left_bottom_P[1], left_bottom_P[0]-start_lon] 
+                            left_top_V      = data_set[end_lat-right_top_P[1], left_bottom_P[0]-start_lon] 
+                            right_top_V     = data_set[end_lat-right_top_P[1], right_top_P[0]-start_lon] 
+                            right_bottom_V  = data_set[end_lat-left_bottom_P[1], right_top_P[0]-start_lon] 
 
-                        top_horizontal_approx   = left_top_V + left_to_right_per*(right_top_V-left_top_V) 
-                        bottom_horizontal_approx= left_bottom_V + left_to_right_per*(right_bottom_V-left_bottom_V) 
-                        horizontal_avg          = (top_horizontal_approx+bottom_horizontal_approx)/2 
+                            bottom_to_up_per    = (p_coord[1]-left_bottom_P[1]) / (right_top_P[1]-left_bottom_P[1]) 
+                            left_to_right_per   = (p_coord[0]-left_bottom_P[0]) / (right_top_P[0]-left_bottom_P[0]) 
+                            
+                            left_vertical_approx    = left_bottom_V + bottom_to_up_per*(left_top_V-left_bottom_V) 
+                            right_vertical_approx   = right_bottom_V + bottom_to_up_per*(right_top_V-right_bottom_V) 
+                            vertical_avg            = (left_vertical_approx+right_vertical_approx)/2 
 
-                        hgt_approx = (vertical_avg+horizontal_avg)/2 
-                        if(hgt_approx<min_HGT[0]): 
-                            min_HGT = [hgt_approx, p_coord[0], p_coord[1]] 
-                     
-                    # 绘制mimmum_point与maxmum_point在ax上面 scatter(lon, lat) 
-                    ax.scatter(min_HGT[1], min_HGT[2]) 
-                    ax.text(min_HGT[1], min_HGT[2], "[{}, {}, {}]".format(format(min_HGT[1], '.2f'),  
-                                                                    format(min_HGT[2], '.2f'),  
-                                                                    format(min_HGT[0], '.2f')),  
-                        fontsize=6, color = "r", style = "italic", weight = "light", 
-                        verticalalignment='top', horizontalalignment='left') 
+                            top_horizontal_approx   = left_top_V + left_to_right_per*(right_top_V-left_top_V) 
+                            bottom_horizontal_approx= left_bottom_V + left_to_right_per*(right_bottom_V-left_bottom_V) 
+                            horizontal_avg          = (top_horizontal_approx+bottom_horizontal_approx)/2 
+
+                            hgt_approx = (vertical_avg+horizontal_avg)/2 
+                            if(hgt_approx<min_HGT[0]): 
+                                min_HGT = [hgt_approx, p_coord[0], p_coord[1]] 
+
+                        # 1. 将拟合椭圆添加进图片对象
+                        ax.add_patch(fit_ellipse) 
+                        # 2. 将拟合椭圆长短半径添加进图片对象
+                        ax.add_line(Line2D([center[0], width_vertex[0]], [center[1], width_vertex[1]])) 
+                        ax.add_line(Line2D([center[0], height_vertex[0]], [center[1], height_vertex[1]])) 
+
+                        # 3. 此处标注出椭圆的中心、顶点的坐标: lon\lat 
+                        ax.scatter(center[0], center[1]) 
+                        ax.text(center[0], center[1], "[{}, {}, S={}]".format(format(center[0], '.2f'), format(center[1], '.2f'), format(ellipse_S, '.2f')),  
+                            fontsize=6, color = "r", style = "italic", weight = "light", 
+                            verticalalignment='center', horizontalalignment='right') 
+
+                        ax.scatter(width_vertex[0], width_vertex[1]) 
+                        ax.text(width_vertex[0], width_vertex[1], "[{}, {}]".format(format(width_vertex[0], '.2f'), format(width_vertex[1], '.2f')),  
+                            fontsize=6, color = "black", style = "italic", weight = "light", 
+                            verticalalignment='center', horizontalalignment='right') 
+
+                        ax.scatter(height_vertex[0], height_vertex[1]) 
+                        ax.text(height_vertex[0], height_vertex[1], "[{}, {}]".format(format(height_vertex[0], '.2f'), format(height_vertex[1], '.2f')),  
+                            fontsize=6, color = "g", style = "italic", weight = "light", 
+                            verticalalignment='center', horizontalalignment='right')
+                            
+                        # 4. 将拟合椭圆信息 append 进文字信息
+                        output_text += "center: ({}, {})\nwidth_axes_slope: {}\nwidth_axes_dist: {}km\nheight_axes_slope: {}\nheight_axes_dist: {}km\nellipse_area: {}km2\n\n".format( 
+                            format(center[0], '.2f'), format(center[1], '.2f'),  
+                            format(width_axes_slop, '.2f'), format(width_axes_dist, '.2f'),  
+                            format(height_axes_slop, '.2f'), format(height_axes_dist, '.2f'),
+                            format(ellipse_area, '.2f')
+                        ) 
+
+                        # 5. 将拟合椭圆信息 append 进 np, 以便输出至 csv 文件
+                        # 改为数组的形式, [center_lon, center_lat, width_axes_slop, width_axes_dist, height_axes_slop, height_axes_dist, ellipse_area]
+                        #np_output = np.append(np_output, [[center[0], center[1], width_axes_slop, width_axes_dist, height_axes_slop, height_axes_dist, ellipse_area]], axis=0)
+                        np_output = np.append(np_output, [[format(center[0], '.3f'),'         ',format(center[1], '.3f'),'         ', format(width_axes_slop, '.3f'),'         ', format(width_axes_dist, '.3f'), '         ', 
+                            format(height_axes_slop, '.3f'),'        ', format(height_axes_dist, '.3f'),'        ', format(ellipse_area, '.3f')]], axis=0)
+                        
+                        # 6. 绘制mimmum_point与maxmum_point在ax上面 scatter(lon, lat) 
+                        ax.scatter(min_HGT[1], min_HGT[2]) 
+                        ax.text(min_HGT[1], min_HGT[2], "[{}, {}, {}]".format(format(min_HGT[1], '.2f'),  
+                                                                        format(min_HGT[2], '.2f'),  
+                                                                        format(min_HGT[0], '.2f')),  
+                            fontsize=6, color = "r", style = "italic", weight = "light", 
+                            verticalalignment='top', horizontalalignment='left') 
+
+
+
  
     # 输出所有椭圆长短半轴输出信息。 
-    ax.text(1.01, 0, output_text, transform=ax1.transAxes, color='black') 
+    ax.text(1.01, 0, output_text, transform=ax.transAxes, color='black') 
     return np.array(np_output)
     
 ''' 
@@ -424,80 +454,85 @@ if __name__ == "__main__":
         print ('HGTprs_850_SC_Ellipse_List:',HGTprs_850_SC_Ellipse_List)
         
         # 基本地图信息 
-        fig     = plt.figure(figsize=(12,8), dpi=550)                   # 创建画布 
+        normal_fig      = plt.figure(num="normal", figsize=(12,8), dpi=550)     # 创建画布 
+        restricted_fig  = plt.figure(num="restricted", figsize=(12,8), dpi=550) # 用来存放指定区域的拟合椭圆
         proj    = ccrs.PlateCarree(central_longitude=0)                 # 改投影坐标系为默认投影，适用于单个省市, 并创建中心 
 
-        # 等高线绘制 
-        ax1 = fig.add_axes([0, 0.1, 0.9, 0.8], projection = proj) 
+        # prepare for normal_ax         ***********************************************************************************************
+        plt.figure("normal")
+        normal_ax       = normal_fig.add_axes([0, 0.1, 0.9, 0.8], projection = proj) # 等高线绘制 
 	
-        ax1.set_title('HGTprs_850'+'    '+str_curr_time)  #标题加入时间
-	
-        ax1 = ConstructBasicMapElem(ax1) 
-     
-        #isoHGT = ax1.contour(lons, lats, HGTprs_850, transform=proj,vmin=138,vmax=151,levels=[138,139,140,141,142,143,144,145,146,147], 
-        #    colors='black', linestyles='-',linewidths=2,alpha=0.8,antialiased=True) 
-            
-        isoHGT = ax1.contour(lons, lats, HGTprs_850, transform=proj, vmin=HGTprs_850_Min_Int, vmax=HGTprs_850_Max_Int, levels=HGTprs_850_List, 
+        normal_ax.set_title('HGTprs_850'+'    '+str_curr_time)  #标题加入时间
+        normal_ax       = ConstructBasicMapElem(normal_ax) 
+        
+        isoHGT = normal_ax.contour(lons, lats, HGTprs_850, transform=proj, vmin=HGTprs_850_Min_Int, vmax=HGTprs_850_Max_Int, levels=HGTprs_850_List, 
             colors='black', linestyles='-',linewidths=2, alpha=0.8, antialiased=True) 
-            
-        ax1.clabel(isoHGT,colors='r',fontsize=8,inline_spacing=-4,fmt='%i') 
-     
-        #FitIsoContourToEllipse(ax1, isoHGT, HGTprs_850, [139, 140, 141],30) 
- 
-        #np_ellipse_info = FitIsoContourToEllipse(ax1, isoHGT, HGTprs_850, [139, 140, 141], 30)
-        np_ellipse_info = FitIsoContourToEllipse(ax1, isoHGT, HGTprs_850, HGTprs_850_SC_Ellipse_List, 1, l_region_restriction=[[25, 34], [103, 110]])
-        
-        str_ellipseInfo_path = output_dir + str_curr_time + ".csv"
-        np.savetxt(str_ellipseInfo_path, np_ellipse_info, delimiter=",", fmt='%s')
-        
+        normal_ax.clabel(isoHGT,colors='r',fontsize=8,inline_spacing=-4,fmt='%i') 
+        np_ellipse_info = FitIsoContourToEllipse(normal_ax, isoHGT, HGTprs_850, HGTprs_850_SC_Ellipse_List)
+
         #PlotGridValue(ax1, HGTprs_850) 
-     
-        # 等高线绘制
-
         # 画温度场  # 等温线
-        isotherm = ax1.contour(lons, lats, TMP_850, transform=proj, levels=range(17,22,1), 
+        isotherm = normal_ax.contour(lons, lats, TMP_850, transform=proj, levels=range(17,22,1), 
                 colors='r', linestyles='--',linewidths=1,alpha=0.8)
-        ax1.clabel(isotherm, colors='r', fontsize=8, inline_spacing=-4, fmt='%i')
-
+        normal_ax.clabel(isotherm, colors='r', fontsize=8, inline_spacing=-4, fmt='%i')
 
         # 画温度平流
         # advection data calculations
         dx, dy = mpcalc.lat_lon_grid_deltas(lons, lats)
         adv = mpcalc.advection(TMP_850 * units('K'), UGRD_850*units('m/s'), VGRD_850*units('m/s'), dx=dx, dy=dy)
 
-        # plot
-        cint = np.arange(-0.5, 0.5, 0.1)
-        cf = ax1.contourf(lons, lats, adv.to(units('delta_degC/hour')), cint[cint != 0],
+        # plot for normal_ax
+        cint    = np.arange(-0.5, 0.5, 0.1)
+        cf      = normal_ax.contourf(lons, lats, adv.to(units('delta_degC/hour')), cint[cint != 0],
                     extend='both', cmap='bwr', transform=proj)
-	
-        #cint = np.arange(-0.5, 0.5, 0.1)				
-        #cf = ax1.contourf(lons, lats, adv.to(units('delta_degC/hour')), cint,colors=['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w','#7D7DFF'],
-        #                extend='both', transform=proj)
-					
-        gs = gridspec.GridSpec(2, 1, height_ratios=[1, .012], bottom=.06, top=.80,
+        gs      = gridspec.GridSpec(2, 1, height_ratios=[1, .012], bottom=.06, top=.80,
             hspace=0.1, wspace=0.01)
-        
-        cax = plt.subplot(gs[1])
-    
-        cbar = plt.colorbar(cf, cax=cax, orientation='horizontal', extendrect=True, ticks=cint)
-	
-        #cbar.set_label(r'$^{o}C$', size='large')
-	
+        cax     = plt.subplot(gs[1])
+        cbar    = plt.colorbar(cf, cax=cax, orientation='horizontal', extendrect=True, ticks=cint)
         cbar.set_label(r'$^{o}C$', size='large')
 	
+        #风标绘制
+        normal_ax.barbs(lons[::4], lats[::4], UGRD_850[::4,::4]*2.5, VGRD_850[::4,::4]*2.5)  #纵横间隔4点画风标
 
-        # 获取每组等温线的经纬度坐标, 数据存储逻辑为：level=i的contours组 -> 该level下的j个contour数据点集合
-        #FitIsoContourToEllipse(ax1, isotherm,TMP_850, [20, 21])
-        # # 粗糙地取等势线内部地极值
-        # GetExtremPointInContour(ax1, isotherm, TMP_850)
+        # prepare for restricted_ax     ***********************************************************************************************
+        plt.figure("restricted")
+        restricted_ax   = restricted_fig.add_axes([0, 0.1, 0.9, 0.8], projection = proj) 
+        restricted_ax.set_title('HGTprs_850_restricted' + '    ' + str_curr_time)
+        restricted_ax   = ConstructBasicMapElem(restricted_ax)
+        # 指定多边形区域的情况
+        isoHGT = restricted_ax.contour(lons, lats, HGTprs_850, transform=proj, vmin=HGTprs_850_Min_Int, vmax=HGTprs_850_Max_Int, levels = HGTprs_850_List, colors='black', linestyles='-',linewidths=2, alpha=0.8, antialiased=True) 
+        restricted_ax.clabel(isoHGT, colors='r',fontsize=8,inline_spacing=-4,fmt='%i') 
+
+        np_ellipse_restricted_info = FitIsoContourToEllipse(restricted_ax, isoHGT, HGTprs_850, HGTprs_850_SC_Ellipse_List, l_region_restriction=[[102.5, 30.0], [105.5, 33.0], [111.0, 31.0], [105.0, 27.0]])
+
+        isotherm = restricted_ax.contour(lons, lats, TMP_850, transform=proj, levels=range(17,22,1), 
+                colors='r', linestyles='--',linewidths=1,alpha=0.8)
+        restricted_ax.clabel(isotherm, colors='r', fontsize=8, inline_spacing=-4, fmt='%i')
+
+        dx, dy = mpcalc.lat_lon_grid_deltas(lons, lats)
+        adv = mpcalc.advection(TMP_850 * units('K'), UGRD_850*units('m/s'), VGRD_850*units('m/s'), dx=dx, dy=dy)
+
+        cint    = np.arange(-0.5, 0.5, 0.1)
+        cf      = restricted_ax.contourf(lons, lats, adv.to(units('delta_degC/hour')), cint[cint != 0],
+                    extend='both', cmap='bwr', transform=proj)
+        gs      = gridspec.GridSpec(2, 1, height_ratios=[1, .012], bottom=.06, top=.80,
+            hspace=0.1, wspace=0.01)
+        cax     = plt.subplot(gs[1])
+        cbar    = plt.colorbar(cf, cax=cax, orientation='horizontal', extendrect=True, ticks=cint)
+        cbar.set_label(r'$^{o}C$', size='large')
 	
-        #风标绘制
-        ax1.barbs(lons[::4], lats[::4], UGRD_850[::4,::4]*2.5, VGRD_850[::4,::4]*2.5)  #纵横间隔4点画风标
-        #风标绘制
-    
-        # 结束 
-        #output_path = '/public/home/chengc/xnw/ERA5/png/ERA5_Mnt0615_w04_'+str_curr_time+'.png' 
-        #print (output_path)
-        #plt.savefig(output_path) 
-        
+        restricted_ax.barbs(lons[::4], lats[::4], UGRD_850[::4,::4]*2.5, VGRD_850[::4,::4]*2.5)  #纵横间隔4点画风标
+
+
+        # output data and png files.
+        str_ellipseInfo_path = output_dir + str_curr_time + ".csv"
+        np.savetxt(str_ellipseInfo_path, np_ellipse_info, delimiter=",", fmt='%s')
+        plt.figure("normal")
         plt.savefig(output_dir + 'ERA5_Zny_One_0622_w02_'+str_curr_time + ".png") 
+
+        if(np_ellipse_restricted_info.size > 1):
+            str_ellipseInfo_restricted_path = output_dir + str_curr_time + "_restricted" + ".csv"
+            np.savetxt(str_ellipseInfo_restricted_path, np_ellipse_restricted_info, delimiter=",", fmt='%s')
+            plt.figure("restricted")
+            plt.savefig(output_dir + 'ERA5_Zny_One_0622_w02_'+str_curr_time + "_restricted" + ".png") 
+
