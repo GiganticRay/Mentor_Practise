@@ -146,7 +146,7 @@ def IsInsidePolygon(pending_p, polygon):
         p1 = pi
         p2 = polygon[0] if pi_idx==len(polygon)-1 else polygon[pi_idx+1]
 
-        if (pending_p[0] < p1[0] and pending_p[0] < p2[0]) or (pending_p[0] > p1[0] and pending_p[0] > p1[0]):
+        if (pending_p[0] < p1[0] and pending_p[0] < p2[0]) or (pending_p[0] > p1[0] and pending_p[0] > p2[0]):
             continue
 
         slope = (p2[1]-p1[1]) / (p2[0]-p1[0])
@@ -263,22 +263,12 @@ def FitIsoContourToEllipse(ax, isomorph, data_set, specified_values=[], l_region
                         ax.add_line(Line2D([center[0], width_vertex[0]], [center[1], width_vertex[1]])) 
                         ax.add_line(Line2D([center[0], height_vertex[0]], [center[1], height_vertex[1]])) 
 
-                        # 3. 此处标注出椭圆的中心、顶点的坐标: lon\lat 
+                        # 3. 此处标注出椭圆的中心坐标: lon\lat 
                         ax.scatter(center[0], center[1]) 
                         ax.text(center[0], center[1], "[{}, {}, S={}]".format(format(center[0], '.2f'), format(center[1], '.2f'), format(ellipse_S, '.2f')),  
                             fontsize=6, color = "r", style = "italic", weight = "light", 
                             verticalalignment='center', horizontalalignment='right') 
 
-                        ax.scatter(width_vertex[0], width_vertex[1]) 
-                        ax.text(width_vertex[0], width_vertex[1], "[{}, {}]".format(format(width_vertex[0], '.2f'), format(width_vertex[1], '.2f')),  
-                            fontsize=6, color = "black", style = "italic", weight = "light", 
-                            verticalalignment='center', horizontalalignment='right') 
-
-                        ax.scatter(height_vertex[0], height_vertex[1]) 
-                        ax.text(height_vertex[0], height_vertex[1], "[{}, {}]".format(format(height_vertex[0], '.2f'), format(height_vertex[1], '.2f')),  
-                            fontsize=6, color = "g", style = "italic", weight = "light", 
-                            verticalalignment='center', horizontalalignment='right')
-                            
                         # 4. 将拟合椭圆信息 append 进文字信息
                         output_text += "center: ({}, {})\nwidth_axes_slope: {}\nwidth_axes_dist: {}km\nheight_axes_slope: {}\nheight_axes_dist: {}km\nellipse_area: {}km2\n\n".format( 
                             format(center[0], '.2f'), format(center[1], '.2f'),  
@@ -294,12 +284,12 @@ def FitIsoContourToEllipse(ax, isomorph, data_set, specified_values=[], l_region
                             format(height_axes_slop, '.3f'),'        ', format(height_axes_dist, '.3f'),'        ', format(ellipse_area, '.3f')]], axis=0)
                         
                         # 6. 绘制mimmum_point与maxmum_point在ax上面 scatter(lon, lat) 
-                        ax.scatter(min_HGT[1], min_HGT[2]) 
-                        ax.text(min_HGT[1], min_HGT[2], "[{}, {}, {}]".format(format(min_HGT[1], '.2f'),  
-                                                                        format(min_HGT[2], '.2f'),  
-                                                                        format(min_HGT[0], '.2f')),  
-                            fontsize=6, color = "r", style = "italic", weight = "light", 
-                            verticalalignment='top', horizontalalignment='left') 
+                        # ax.scatter(min_HGT[1], min_HGT[2]) 
+                        # ax.text(min_HGT[1], min_HGT[2], "[{}, {}, {}]".format(format(min_HGT[1], '.2f'),  
+                        #                                                 format(min_HGT[2], '.2f'),  
+                        #                                                 format(min_HGT[0], '.2f')),  
+                        #     fontsize=6, color = "r", style = "italic", weight = "light", 
+                        #     verticalalignment='top', horizontalalignment='left') 
 
 
 
@@ -455,7 +445,9 @@ if __name__ == "__main__":
         
         # 基本地图信息 
         normal_fig      = plt.figure(num="normal", figsize=(12,8), dpi=550)     # 创建画布 
+        plt.clf()                                                               # 清图
         restricted_fig  = plt.figure(num="restricted", figsize=(12,8), dpi=550) # 用来存放指定区域的拟合椭圆
+        plt.clf()
         proj    = ccrs.PlateCarree(central_longitude=0)                 # 改投影坐标系为默认投影，适用于单个省市, 并创建中心 
 
         # prepare for normal_ax         ***********************************************************************************************
