@@ -107,13 +107,15 @@
 
 # New Assignment (Editied in 2021/8/16)
 
-
+## 1. fix the program's bugs (the points' number of requiring fitting ellipse; converting radian)
 ### solution (editted in 2021/8/16)
 > solution is located in the [Q1 solution][Q1_solution_commit].
 
-## 2. individually paint the ellipse whose center point is located in the appointed area.
-> 已解决，文件输出格式为 output_dir + 'ERA5_Zny_One_0622_w02_'+str_curr_time + "_restricted" + ".png"\
-> 判别方式：在拟合椭圆函数 ```FitIsoContourToEllipse``` 中，看```l_region_restriction```函数是否为空，如果不空表明有指定的多边形区域
+## 2. individually paint the ellipse whose center point is located in the appointed area. （edited in 2021/8/18)
+> 文件输出格式为 output_dir + 'ERA5_Zny_One_0622_w02_'+str_curr_time + "_restricted" + ".png"\
+> 判别方式：在拟合椭圆函数 ```FitIsoContourToEllipse``` 中，看```l_region_restriction```函数是否为空，如果不空表明有指定的多边形区域\
+> 添加```IsInsidePolygon(pending_p, polygon)```函数，判定```pending_P```是否在```polygon```之内\
+> 遵循matplotlib绘图逻辑，绘制拟合椭圆图形，如果没有位于 polygon 中的拟合椭圆，则不输出文件。
 
 ## 3. bouns: truncatingthe data used to fit ellipse if its fitting shape is similar to ∞
 
